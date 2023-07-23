@@ -1,2 +1,5 @@
 .venv
 .env
+.pgpass
+
+__pycache__

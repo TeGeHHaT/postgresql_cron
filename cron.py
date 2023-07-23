@@ -1,59 +1,61 @@
-import psycopg2  
 import os  
-import dotenv  
-from crontab import CronTab  
+import dotenv
+from connection import Connection
+import time
+from croniter import croniter
+from concurrent.futures import ProcessPoolExecutor
+import asyncio
   
 # Переменные  
 dotenv.load_dotenv()
 HOST = os.getenv('HOST')
 PORT = os.getenv('PORT')
 DB = os.getenv('DB')
-USER_DB = os.getenv('USER_DB')
+USER_NAME = os.getenv('USER_NAME')
+USER_PASSWORD = os.getenv('USER_PASSWORD')
   
-# Открываем соединение с БД  
-connection = psycopg2.connect(os.getenv('CONNECT_DB'))  
-cursor = connection.cursor()  
+# Создаём экземпляр класса Connection
+connection = Connection(host=HOST, port=PORT, database_name=DB, user_name=USER_NAME, user_pwd=USER_PASSWORD)
   
-def GetCron():  
+def get_cron():  
     """Получаем информацию о кроне"""  
-    cursor.execute(os.getenv('SELECT_CRON'))  
-    return cursor.fetchall()  
+    return connection.execute(os.getenv('SELECT_CRON'))
   
-def CreateCron(crons):  
-    """Создаём cron задания на сервере"""  
-    # Создание объекта cron  
-    cron = CronTab(user=True)
-  
-    # Добавление новых задач на основе списка кронов из базы данных  
-    for cron_id, cron_str, func_name in crons:
-        # Создание команды cron для выполнения функции PostgreSQL  
-        command = f"psql -h '{HOST}' -p '{PORT}' -d '{DB}' -U '{USER_DB}' -c 'SELECT {func_name}()'"
-        cron_comment = f'database_cron_{cron_id}' 
- 
-        '''
-        # Обновление задачи 
-        for job in cron: 
-            if job.comment == cron_comment: 
-                job.setall(cron_str) 
-                job.set_command(command)
-        
-         
-        # Если крон не найден, то добавляем его  
-        if not any(job.comment == cron_comment for job in cron):
-        '''
-        # Создание новой задачи cron с указанным расписанием и командой  
-        job = cron.new(command=command, comment=cron_comment)  
-        job.setall(cron_str)
+def execute_cron(func_name):
+    """Выполнение отдельного задания по расписанию"""
 
-        # Включение задачи  
-        job.enable() 
-  
-    # Сохранение изменений в cron  
-    cron.write()  
+    # Создание команды cron для выполнения функции PostgreSQL
+    command = f"psql -h '{HOST}' -p '{PORT}' -d '{DB}' -U '{USER_NAME}' -w -c 'SELECT {func_name}()'"
+    os.system(command)
+
+async def run_cron_async(cron_str, func_name):
+    """Асинхронное выполнение задания по расписанию"""
+    cron = croniter(cron_str, time.time())  # Создание объекта для работы с расписанием cron и текущего времени
+
+    while True:
+        # Запускаем задание в отдельном процессе
+        with ProcessPoolExecutor() as executor:
+            executor.submit(execute_cron, func_name)
+
+        # Вычисляем время следующего запуска задания после его запуска
+        next_run_timestamp = cron.get_next(float)
+
+        # Вычисляем время ожидания до следующего запуска
+        time_to_wait = next_run_timestamp - time.time()
+
+        # Если время ожидания отрицательное, это значит, что следующий запуск уже прошел, пропускаем его и ловим следующий
+        if time_to_wait <= 0:
+            continue
+
+        # Ждем до следующего запуска
+        await asyncio.sleep(time_to_wait)
+
+def run_cron(crons):
+    """Запуск заданий по расписанию (cron) в асинхронном режиме"""
+
+    loop = asyncio.get_event_loop()
+    tasks = [run_cron_async(cron_str, func_name) for cron_str, func_name in crons]
+    loop.run_until_complete(asyncio.gather(*tasks))
   
 if __name__ == '__main__':  
-    CreateCron(GetCron())  
-  
-    # Закрываем соединение с БД  
-    cursor.close()  
-    connection.close()
+    run_cron(get_cron())
