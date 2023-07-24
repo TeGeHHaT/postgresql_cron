@@ -14,11 +14,13 @@ DB = os.getenv('DB')
 USER_NAME = os.getenv('USER_NAME')
 USER_PASSWORD = os.getenv('USER_PASSWORD')
   
-# Создаём экземпляр класса Connection
-connection = Connection(host=HOST, port=PORT, database_name=DB, user_name=USER_NAME, user_pwd=USER_PASSWORD)
+
   
 def get_cron():  
-    """Получаем информацию о кроне"""  
+    """Получаем информацию о кроне""" 
+    # Создаём экземпляр класса Connection
+    connection = Connection(host=HOST, port=PORT, database_name=DB, user_name=USER_NAME, user_pwd=USER_PASSWORD)
+  
     return connection.execute(os.getenv('SELECT_CRON'))
   
 def execute_cron(func_name):
