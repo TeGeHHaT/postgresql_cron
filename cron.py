@@ -14,8 +14,6 @@ DB = os.getenv('DB')
 USER_NAME = os.getenv('USER_NAME')
 USER_PASSWORD = os.getenv('USER_PASSWORD')
   
-
-  
 def get_cron():  
     """Получаем информацию о кроне""" 
     # Создаём экземпляр класса Connection
