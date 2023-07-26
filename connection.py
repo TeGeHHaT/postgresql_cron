@@ -12,14 +12,10 @@ class Connection:
         
     def execute(self, query):
         """Выполнение SQL запроса с возвращением результата"""
-        connection = psycopg2.connect(f'postgresql://{self.user_name}:{self.user_pwd}@{self.host}:{self.port}/{self.database_name}')  
-        cursor = connection.cursor()
-
-        cursor.execute(query)  
-        result = cursor.fetchall()
+        with psycopg2.connect(f'postgresql://{self.user_name}:{self.user_pwd}@{self.host}:{self.port}/{self.database_name}') as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query)  
+                result = cursor.fetchall()
     
-        # Закрываем соединение с БД  
-        cursor.close()  
-        connection.close()
 
         return result

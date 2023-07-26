@@ -3,7 +3,7 @@ import dotenv
 from connection import Connection
 import time
 from croniter import croniter
-from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Pool
 import asyncio
   
 # Переменные  
@@ -24,9 +24,7 @@ def get_cron():
 def execute_cron(func_name):
     """Выполнение отдельного задания по расписанию"""
 
-    # Создание команды cron для выполнения функции PostgreSQL
-    command = f"psql -h '{HOST}' -p '{PORT}' -d '{DB}' -U '{USER_NAME}' -w -c 'SELECT {func_name}()'"
-    os.system(command)
+    connection.execute(f'select {func_name}();')
 
 async def run_cron_async(cron_str, func_name):
     """Асинхронное выполнение задания по расписанию"""
@@ -34,8 +32,8 @@ async def run_cron_async(cron_str, func_name):
 
     while True:
         # Запускаем задание в отдельном процессе
-        with ProcessPoolExecutor() as executor:
-            executor.submit(execute_cron, func_name)
+        with Pool() as executor:
+            executor.apply_async(execute_cron, func_name)
 
         # Вычисляем время следующего запуска задания после его запуска
         next_run_timestamp = cron.get_next(float)
