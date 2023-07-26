@@ -5,7 +5,7 @@ import time
 from croniter import croniter
 from multiprocessing import Pool
 import asyncio
-  
+
 # Переменные  
 dotenv.load_dotenv()
 HOST = os.getenv('HOST')
@@ -13,15 +13,15 @@ PORT = os.getenv('PORT')
 DB = os.getenv('DB')
 USER_NAME = os.getenv('USER_NAME')
 USER_PASSWORD = os.getenv('USER_PASSWORD')
-  
+
 # Создаём экземпляр класса Connection
 connection = Connection(host=HOST, port=PORT, database_name=DB, user_name=USER_NAME, user_pwd=USER_PASSWORD)
 
 def get_cron():  
     """Получаем информацию о кроне""" 
-  
+
     return connection.execute(os.getenv('SELECT_CRON'))
-  
+
 def execute_cron(func_name):
     """Выполнение отдельного задания по расписанию"""
 
@@ -55,6 +55,6 @@ def run_cron(crons):
     loop = asyncio.get_event_loop()
     tasks = [run_cron_async(cron_str, func_name) for cron_str, func_name in crons]
     loop.run_until_complete(asyncio.gather(*tasks))
-  
+
 if __name__ == '__main__':  
     run_cron(get_cron())
